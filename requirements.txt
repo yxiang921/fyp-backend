@@ -1,0 +1,9 @@
+flask>=3.0,<4
+opencv-python>=4.8
+numpy>=1.24
+ultralytics>=8.2
+insightface>=0.7.3
+onnxruntime>=1.17
+imageio-ffmpeg>=0.5
+psycopg[binary]>=3.2
+python-dotenv>=1.0
