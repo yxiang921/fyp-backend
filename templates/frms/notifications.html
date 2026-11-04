@@ -1,1 +1,0 @@
-{% extends 'base.html' %}{% block content %}<h1>Notifications</h1>{% for x in notifications %}<article><p>{{x.data}}</p><small>{{x.created_at}}</small></article>{% else %}<p>No notifications.</p>{% endfor %}{% endblock %}

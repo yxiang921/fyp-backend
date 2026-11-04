@@ -1,0 +1,109 @@
+{% extends 'base.html' %}{% block content %}
+<h1>Recognition settings</h1>
+<form method="post">
+
+  <fieldset><legend>Recognition thresholds</legend>
+    <label>Similarity threshold (0–1)
+      <input name="threshold" type="number" step="0.01" min="0" max="1" value="{{ settings.threshold }}">
+      <small>Minimum cosine similarity to match a face (lower = more sensitive).</small>
+    </label>
+    <label>Face recognition interval (frames)
+      <input name="face_interval" type="number" min="1" value="{{ settings.face_interval }}">
+      <small>Legacy: frames between face recognition for the same tracked person.</small>
+    </label>
+    <label>Recognition interval (frames)
+      <input name="recognition_interval" type="number" min="1" value="{{ settings.recognition_interval }}">
+      <small>How often to re-recognize a known person. Higher = less CPU.</small>
+    </label>
+    <label>Unknown re-check interval (frames)
+      <input name="unknown_recheck_interval" type="number" min="1" value="{{ settings.unknown_recheck_interval }}">
+      <small>How often to re-check a person who was previously "Unknown".</small>
+    </label>
+  </fieldset>
+
+  <fieldset><legend>AI inference</legend>
+    <label>YOLO interval (frames)
+      <input name="yolo_interval" type="number" min="1" value="{{ settings.yolo_interval }}">
+      <small>Run person detection every N frames. 1 = every frame, 3 = every 3rd. Higher = faster, lower = more responsive.</small>
+    </label>
+    <label>AI inference width (px)
+      <input name="ai_width" type="number" min="160" max="1920" value="{{ settings.ai_width }}">
+      <small>YOLO input resolution width. Lower = faster but may miss small persons.</small>
+    </label>
+    <label>Maximum inference width
+      <input name="inference_max_width" type="number" min="320" value="{{ settings.inference_max_width }}">
+      <small>Max width for video-file processing (higher quality, slower).</small>
+    </label>
+  </fieldset>
+
+  <fieldset><legend>Face quality filtering</legend>
+    <label>Minimum face size (px)
+      <input name="min_face_size" type="number" min="20" value="{{ settings.min_face_size }}">
+      <small>Skip ArcFace if the detected face is smaller than this (width or height).</small>
+    </label>
+    <label>Face confidence threshold (0–1)
+      <input name="face_conf_threshold" type="number" step="0.01" min="0.1" max="1" value="{{ settings.face_conf_threshold }}">
+      <small>Minimum SCRFD detection confidence to run ArcFace recognition.</small>
+    </label>
+  </fieldset>
+
+  <fieldset><legend>Tracking</legend>
+    <label>Tracker
+      <select name="tracker">
+        <option value="bytetrack.yaml" {% if settings.tracker == 'bytetrack.yaml' %}selected{% endif %}>ByteTrack</option>
+        <option value="botsort.yaml" {% if settings.tracker == 'botsort.yaml' %}selected{% endif %}>BoT-SORT</option>
+      </select>
+      <small>Note: standalone ByteTrack is used internally; this setting is for display.</small>
+    </label>
+    <label>Max track age (frames)
+      <input name="max_track_age" type="number" min="10" value="{{ settings.max_track_age }}">
+      <small>Remove cached recognition results after this many frames of not seeing the person.</small>
+    </label>
+    <label>Alert cooldown (seconds)
+      <input name="alert_cooldown" type="number" min="0" value="{{ settings.alert_cooldown }}">
+      <small>Minimum seconds between repeat alerts for the same person.</small>
+    </label>
+  </fieldset>
+
+  <button>Save settings</button>
+</form>
+
+<h2>Add camera</h2>
+<form method="post" action="{{ url_for('add_camera') }}">
+  <label>Camera name <input name="name" required></label>
+  <label>Camera ID <input name="camera_id" required placeholder="main-entrance"></label>
+  <label>Stream URL or local camera index <input name="source" required placeholder="0 or rtsp://user:password@host:554/stream"></label>
+  <label>Stream type <select name="stream_type"><option value="mjpeg">MJPEG</option><option value="rtsp">RTSP</option><option value="webcam">Webcam</option></select></label>
+  <label>Location <input name="location"></label>
+  <label>Description <textarea name="description"></textarea></label>
+  {% if laravel_cameras %}
+  <label>Laravel registered-by user ID <input name="registered_by" type="number" required></label>
+  <label>IP address (optional) <input name="ip_address"></label>
+  <label>Port (optional) <input name="port" type="number"></label>
+  <label>Camera username (optional) <input name="username"></label>
+  <label>Camera password (optional) <input name="password" type="password"></label>
+  {% endif %}
+  <button>Add camera</button>
+</form>
+
+<h2>Configured cameras</h2>
+{% if laravel_cameras %}<p>Flask and Laravel use the same <code>cameras</code> table. Cameras added here will appear in Laravel too.</p>{% endif %}
+<table>
+  <tr><th>Name</th><th>ID</th><th>Location</th><th>Stream endpoint</th></tr>
+  {% for camera in cameras %}
+  <tr>
+    <td>{{ camera.name }}</td>
+    <td><code>{{ camera.id }}</code></td>
+    <td>{{ camera.location or '-' }}</td>
+    <td><code>/video_feed/{{ camera.id }}</code></td>
+  </tr>
+  {% endfor %}
+</table>
+
+<h2>Reset face database</h2>
+<p>This permanently deletes all Python face profiles and ArcFace embeddings. It does not delete Laravel missing-person cases, cameras, detections, screenshots, or verification requests.</p>
+<form method="post" action="{{ url_for('reset_face_database') }}">
+  <label>Type <code>RESET</code> to confirm <input name="confirmation" required autocomplete="off"></label>
+  <button class="stop">Reset face database</button>
+</form>
+{% endblock %}

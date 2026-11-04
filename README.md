@@ -2,7 +2,22 @@
 
 This Flask application implements the recognition pipeline:
 
-`camera/upload → YOLO person detection → ByteTrack/BoT-SORT → SCRFD face detection → ArcFace comparison → Laravel alert`
+- Live cameras: `camera → YOLO person detection → ByteTrack → SCRFD face detection → ArcFace comparison → Laravel alert`
+- Uploaded tests: `image/video frame → SCRFD face detection → ArcFace comparison → annotated result`
+
+## Project structure
+
+```
+app/
+├── __init__.py        # create_app() factory
+├── camera_stream.py   # two-thread camera capture + AI stream
+├── routes/            # HTTP handlers (dashboard, settings, people, testing, feeds, api)
+├── services/          # face_service, postgres_face_database, settings_store
+├── templates/
+└── static/
+database/              # runtime settings (gitignored)
+outputs/               # generated detections/uploads (gitignored)
+```
 
 ## Run
 
@@ -26,13 +41,13 @@ Open `http://localhost:5000`.
 ## Web functions
 
 - **Register missing person**: stores one ArcFace embedding and name, age, gender, and notes in `database/`.
-- **Image testing**: uploads a still image and displays annotated persons/faces and recognition scores.
+- **Image testing**: uploads a still image, scans the full image for faces, and displays face boxes and recognition scores.
 - **Video testing**: uploads a video and produces an annotated MP4 in `outputs/`.
 - **Live laptop camera**: recognizes each tracked person and exposes the annotated feed through `/video_feed`.
 
 ## Settings
 
-The default similarity threshold is `0.50` in `face_service.py`. Recognized targets trigger a blank-body `POST` to `http://localhost:8000/sendAlert`, with a 30-second per-person/per-track cooldown to avoid duplicate alerts.
+The default similarity threshold is `0.50` in `app/services/face_service.py`. Recognized targets trigger a blank-body `POST` to `http://localhost:8000/sendAlert`, with a 30-second per-person/per-track cooldown to avoid duplicate alerts.
 
 To use BoT-SORT rather than ByteTrack for one run:
 
@@ -45,7 +60,7 @@ Optional environment settings: `CAMERA_INDEX` (default `0`), `PORT` (default `50
 
 ## Video performance
 
-The app now runs person tracking every frame but runs SCRFD + ArcFace only once every four frames for each existing track. This is normally the largest speed improvement while keeping boxes smooth. Large videos are also resized to a maximum inference width of 960 pixels and restored to their original output size.
+Live cameras use periodic YOLO/person tracking and cached recognition for throughput. Uploaded test videos scan each frame directly with SCRFD so cropped or close-up faces do not depend on a YOLO person box; ArcFace results are cached between recognition intervals. Large videos are resized to a maximum inference width of 960 pixels and restored to their original output size.
 
 For a faster, lower-detail demo, set these before starting the app:
 
@@ -64,9 +79,10 @@ On the first run, Ultralytics and InsightFace may download their required model 
 ## PostgreSQL and Laravel registration API
 
 1. Copy `.env.example` to a private `.env` file or set its values in your deployment environment. Do **not** commit database credentials.
-2. Run `schema.sql` once against PostgreSQL.
-   If you previously used this project's old PostgreSQL schema, also run `migrations/001_move_face_embeddings_to_face_profiles.sql` once.
+2. Run Laravel's migrations first, then run [`database/postgres_face_schema.sql`](database/postgres_face_schema.sql) against the same PostgreSQL database. This creates the Python-owned `face_profiles` / `face_embeddings` tables used here. Laravel's migrations provide the shared `cameras`, `detections`, and `verification_requests` tables.
 3. Install the updated dependencies and set `DATABASE_URL`. The Python app automatically uses PostgreSQL when that variable exists; otherwise it continues with the local demonstration database.
+
+For operator protection, set `FLASK_UI_USERNAME` and `FLASK_UI_PASSWORD`, or place Flask behind an authenticated reverse proxy. The `/health` endpoint remains available for local health checks.
 
 Laravel registers a person with `POST /api/missing-persons` as `multipart/form-data`:
 

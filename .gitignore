@@ -1,0 +1,23 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+*.log
+.venv/
+venv/
+
+# Secrets / environment
+.env
+
+# Runtime data & generated output
+outputs/
+database/
+images/
+
+# Model weights (auto-downloaded by ultralytics)
+*.pt
+
+# IDE / OS
+.vscode/
+.idea/
+.DS_Store
